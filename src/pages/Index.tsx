@@ -1,13 +1,39 @@
-// Update this page (the content is just a fallback if you fail to update the page)
+import { useState } from "react";
+import { AppLayout } from "@/components/AppLayout";
+import { SearchPage } from "@/components/SearchPage";
+import { ProjectPage } from "@/components/ProjectPage";
+import { AdminPage } from "@/components/AdminPage";
+
+type Tab = "search" | "project" | "admin";
 
 const Index = () => {
+  const [activeTab, setActiveTab] = useState<Tab>("search");
+
+  const searchPage = SearchPage();
+  const projectPage = ProjectPage();
+  const adminPage = AdminPage();
+
+  const getPageData = () => {
+    switch (activeTab) {
+      case "search":
+        return searchPage;
+      case "project":
+        return projectPage;
+      case "admin":
+        return adminPage;
+    }
+  };
+
+  const pageData = getPageData();
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
-      <div className="text-center">
-        <h1 className="mb-4 text-4xl font-bold">Welcome to Your Blank App</h1>
-        <p className="text-xl text-muted-foreground">Start building your amazing project here!</p>
-      </div>
-    </div>
+    <AppLayout
+      activeTab={activeTab}
+      onTabChange={setActiveTab}
+      sidebar={pageData.sidebar}
+    >
+      {pageData.content}
+    </AppLayout>
   );
 };
 
