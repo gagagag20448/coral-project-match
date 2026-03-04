@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Search, Settings, ChevronLeft, ChevronRight } from "lucide-react";
+import { Search, Settings, ChevronLeft, ChevronRight, FolderKanban } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
