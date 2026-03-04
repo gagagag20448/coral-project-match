@@ -27,19 +27,27 @@ export function AppLayout({ children, sidebar, activeTab, onTabChange }: AppLayo
             {/* Tab switcher */}
             <div className="flex gap-2 p-4">
               <Button
-                variant={activeTab === "search" || activeTab === "project" ? "coral" : "surface"}
-                className="flex-1 gap-2"
+                variant={activeTab === "search" ? "coral" : "surface"}
+                className="flex-1 gap-1.5 text-xs"
                 onClick={() => onTabChange("search")}
               >
-                <Search className="h-4 w-4" />
+                <Search className="h-3.5 w-3.5" />
                 Поиск
               </Button>
               <Button
+                variant={activeTab === "project" ? "coral" : "surface"}
+                className="flex-1 gap-1.5 text-xs"
+                onClick={() => onTabChange("project")}
+              >
+                <FolderKanban className="h-3.5 w-3.5" />
+                Проект
+              </Button>
+              <Button
                 variant={activeTab === "admin" ? "coral" : "surface"}
-                className="flex-1 gap-2"
+                className="flex-1 gap-1.5 text-xs"
                 onClick={() => onTabChange("admin")}
               >
-                <Settings className="h-4 w-4" />
+                <Settings className="h-3.5 w-3.5" />
                 Админ
               </Button>
             </div>
