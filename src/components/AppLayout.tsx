@@ -1,13 +1,13 @@
 import { useState } from "react";
-import { Search, Settings, ChevronLeft, ChevronRight, FolderKanban } from "lucide-react";
+import { Search, Settings, ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 interface AppLayoutProps {
   children: React.ReactNode;
   sidebar: React.ReactNode;
-  activeTab: "search" | "project" | "admin";
-  onTabChange: (tab: "search" | "project" | "admin") => void;
+  activeTab: "search" | "admin";
+  onTabChange: (tab: "search" | "admin") => void;
 }
 
 export function AppLayout({ children, sidebar, activeTab, onTabChange }: AppLayoutProps) {
@@ -33,14 +33,6 @@ export function AppLayout({ children, sidebar, activeTab, onTabChange }: AppLayo
               >
                 <Search className="h-3.5 w-3.5" />
                 Поиск
-              </Button>
-              <Button
-                variant={activeTab === "project" ? "coral" : "surface"}
-                className="flex-1 gap-1.5 text-xs"
-                onClick={() => onTabChange("project")}
-              >
-                <FolderKanban className="h-3.5 w-3.5" />
-                Проект
               </Button>
               <Button
                 variant={activeTab === "admin" ? "coral" : "surface"}
