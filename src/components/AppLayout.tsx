@@ -6,8 +6,8 @@ import { cn } from "@/lib/utils";
 interface AppLayoutProps {
   children: React.ReactNode;
   sidebar: React.ReactNode;
-  activeTab: "search" | "project" | "admin";
-  onTabChange: (tab: "search" | "project" | "admin") => void;
+  activeTab: "search" | "admin";
+  onTabChange: (tab: "search" | "admin") => void;
 }
 
 export function AppLayout({ children, sidebar, activeTab, onTabChange }: AppLayoutProps) {
