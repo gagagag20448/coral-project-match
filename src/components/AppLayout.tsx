@@ -35,14 +35,6 @@ export function AppLayout({ children, sidebar, activeTab, onTabChange }: AppLayo
                 Поиск
               </Button>
               <Button
-                variant={activeTab === "project" ? "coral" : "surface"}
-                className="flex-1 gap-1.5 text-xs"
-                onClick={() => onTabChange("project")}
-              >
-                <FolderKanban className="h-3.5 w-3.5" />
-                Проект
-              </Button>
-              <Button
                 variant={activeTab === "admin" ? "coral" : "surface"}
                 className="flex-1 gap-1.5 text-xs"
                 onClick={() => onTabChange("admin")}
