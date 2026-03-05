@@ -1,5 +1,5 @@
 import { useState, useRef, KeyboardEvent } from "react";
-import { Search, Bot, Send, Lightbulb, Settings2, HelpCircle, Trash2, ClipboardList, Sparkles, Check, Package, X } from "lucide-react";
+import { Search, Bot, Send, Lightbulb, Settings2, HelpCircle, Trash2, ClipboardList, Sparkles, Check, Package, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import {
@@ -25,6 +25,8 @@ interface ProjectItem {
   selectedProduct?: string;
   supplier?: string;
   price?: number;
+  article?: string;
+  unit?: string;
 }
 
 interface SearchResult {
@@ -33,12 +35,17 @@ interface SearchResult {
   supplier: string;
   price: number;
   match: number;
+  article: string;
+  unit: string;
+  inStock: boolean;
+  deliveryDays: number;
 }
 
 const MOCK_RESULTS: SearchResult[] = [
-  { id: "1", name: "Автомат дифференциальный C50 100мА 6кА AC", supplier: "Поставщик 1", price: 2450, match: 95 },
-  { id: "2", name: "Автомат диф. C50 100мА 6кА тип AC IEK", supplier: "Поставщик 2", price: 2680, match: 88 },
-  { id: "3", name: "АВДТ С50 100мА 6кА АС Schneider", supplier: "Поставщик 1", price: 3100, match: 82 },
+  { id: "1", name: "Автомат дифференциальный C50 100мА 6кА AC", supplier: "WoltaPro", price: 2450, match: 95, article: "АВДТ-50-С", unit: "шт", inStock: true, deliveryDays: 1 },
+  { id: "2", name: "Автомат диф. C50 100мА 6кА тип AC IEK", supplier: "EKF Электро", price: 2680, match: 88, article: "IEK-АВДТ-50", unit: "шт", inStock: true, deliveryDays: 3 },
+  { id: "3", name: "АВДТ С50 100мА 6кА АС Schneider", supplier: "Schneider", price: 3100, match: 82, article: "SE-АВДТ-50AC", unit: "шт", inStock: false, deliveryDays: 5 },
+  { id: "4", name: "Автомат дифф. C50 100мА ABB", supplier: "WoltaPro", price: 3450, match: 78, article: "ABB-DS50", unit: "шт", inStock: true, deliveryDays: 2 },
 ];
 
 const EXAMPLE_QUERIES = [
@@ -57,19 +64,14 @@ function SearchSidebar({
   onModeChange,
   onSendQuery,
   onClear,
-  onPasteBatch,
-  hasBatchItems,
 }: {
   mode: SearchMode;
   onModeChange: (m: SearchMode) => void;
   onSendQuery: (q: string) => void;
   onClear: () => void;
-  onPasteBatch: (text: string) => void;
-  hasBatchItems: boolean;
 }) {
   const [maxResults, setMaxResults] = useState(30);
   const [temperature, setTemperature] = useState(0.5);
-  const [batchText, setBatchText] = useState("");
 
   return (
     <div className="space-y-5">
@@ -106,7 +108,6 @@ function SearchSidebar({
             Очистить разговор
           </Button>
 
-          {/* Examples */}
           <div className="space-y-3">
             <h3 className="flex items-center gap-2 text-sm font-medium text-foreground">
               <Lightbulb className="h-4 w-4 text-amber-400" />
@@ -125,7 +126,6 @@ function SearchSidebar({
             </div>
           </div>
 
-          {/* Parameters */}
           <div className="space-y-4">
             <h3 className="flex items-center gap-2 text-sm font-medium text-foreground">
               <Settings2 className="h-4 w-4 text-muted-foreground" />
@@ -137,12 +137,8 @@ function SearchSidebar({
                 <HelpCircle className="h-4 w-4 text-muted-foreground" />
               </div>
               <span className="text-sm font-medium text-primary">{maxResults}</span>
-              <Slider
-                value={[maxResults]}
-                onValueChange={([v]) => setMaxResults(v)}
-                max={100} min={1} step={1}
-                className="[&_[role=slider]]:bg-primary [&_[role=slider]]:border-primary [&_.relative>div]:bg-primary"
-              />
+              <Slider value={[maxResults]} onValueChange={([v]) => setMaxResults(v)} max={100} min={1} step={1}
+                className="[&_[role=slider]]:bg-primary [&_[role=slider]]:border-primary [&_.relative>div]:bg-primary" />
             </div>
             <div className="space-y-2">
               <div className="flex items-center justify-between">
@@ -150,23 +146,19 @@ function SearchSidebar({
                 <HelpCircle className="h-4 w-4 text-muted-foreground" />
               </div>
               <span className="text-sm font-medium text-primary">{temperature.toFixed(2)}</span>
-              <Slider
-                value={[temperature]}
-                onValueChange={([v]) => setTemperature(v)}
-                max={1} min={0} step={0.01}
-                className="[&_[role=slider]]:bg-primary [&_[role=slider]]:border-primary [&_.relative>div]:bg-primary"
-              />
+              <Slider value={[temperature]} onValueChange={([v]) => setTemperature(v)} max={1} min={0} step={0.01}
+                className="[&_[role=slider]]:bg-primary [&_[role=slider]]:border-primary [&_.relative>div]:bg-primary" />
             </div>
           </div>
         </>
       ) : (
         <>
-          {/* Batch mode sidebar */}
+          {/* Batch mode — just instructions */}
           <div className="space-y-3">
             <h3 className="text-sm font-semibold text-foreground">Как это работает?</h3>
             <div className="space-y-2 text-sm">
               {[
-                "Вставьте список товаров ниже",
+                "Вставьте список товаров в поле по центру",
                 "Нажмите на строку в таблице",
                 "Выберите подходящий вариант",
               ].map((text, i) => (
@@ -180,34 +172,15 @@ function SearchSidebar({
             </div>
           </div>
 
-          <div className="space-y-2">
-            <label className="text-sm font-medium text-foreground">Список товаров</label>
-            <textarea
-              value={batchText}
-              onChange={(e) => setBatchText(e.target.value)}
-              placeholder={EXAMPLE_BATCH}
-              rows={6}
-              className="w-full rounded-lg border border-border bg-card p-3 text-sm text-foreground placeholder:text-muted-foreground/50 focus:outline-none focus:border-primary/50 resize-none transition-colors"
-            />
-            <p className="text-xs text-muted-foreground">Каждый товар — с новой строки</p>
+          <div className="border-t border-border pt-4 space-y-2">
+            <h3 className="flex items-center gap-2 text-sm font-medium text-foreground">
+              <span className="text-pink-400">●</span>
+              Подсказка
+            </h3>
+            <p className="text-sm text-muted-foreground">
+              Каждый товар вводите с новой строки. Система найдёт ближайшие совпадения в прайс-листах поставщиков.
+            </p>
           </div>
-
-          <Button
-            variant="coral"
-            className="w-full gap-2"
-            onClick={() => { onPasteBatch(batchText); setBatchText(""); }}
-            disabled={!batchText.trim()}
-          >
-            <Sparkles className="h-4 w-4" />
-            {hasBatchItems ? "Добавить позиции" : "Создать проект"}
-          </Button>
-
-          <button
-            onClick={() => setBatchText(EXAMPLE_BATCH)}
-            className="w-full text-xs text-muted-foreground hover:text-primary transition-colors text-center"
-          >
-            Вставить пример →
-          </button>
         </>
       )}
     </div>
@@ -228,6 +201,7 @@ export function SearchPage() {
   const [items, setItems] = useState<ProjectItem[]>([]);
   const [selectedItem, setSelectedItem] = useState<ProjectItem | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [batchInput, setBatchInput] = useState("");
 
   const sendMessage = (text: string) => {
     if (!text.trim()) return;
@@ -248,14 +222,16 @@ export function SearchPage() {
     }
   };
 
-  const handlePasteBatch = (text: string) => {
-    const lines = text.split("\n").filter((l) => l.trim());
+  const handlePasteBatch = () => {
+    if (!batchInput.trim()) return;
+    const lines = batchInput.split("\n").filter((l) => l.trim());
     const newItems: ProjectItem[] = lines.map((line, i) => ({
       id: items.length + i + 1,
       query: line.trim(),
       status: "pending",
     }));
     setItems((prev) => [...prev, ...newItems]);
+    setBatchInput("");
   };
 
   const handleRowClick = (item: ProjectItem) => {
@@ -276,7 +252,7 @@ export function SearchPage() {
     setItems((prev) =>
       prev.map((p) =>
         p.id === selectedItem.id
-          ? { ...p, status: "selected", selectedProduct: result.name, supplier: result.supplier, price: result.price }
+          ? { ...p, status: "selected", selectedProduct: result.name, supplier: result.supplier, price: result.price, article: result.article, unit: result.unit }
           : p
       )
     );
@@ -299,14 +275,11 @@ export function SearchPage() {
         onModeChange={setMode}
         onSendQuery={sendMessage}
         onClear={() => setMessages([])}
-        onPasteBatch={handlePasteBatch}
-        hasBatchItems={items.length > 0}
       />
     ),
     content: (
       <div className="flex h-full flex-col">
         {mode === "single" ? (
-          /* ─── Single search mode ─── */
           <>
             <div className="p-8 pb-4">
               <h1 className="flex items-center gap-3 text-3xl font-bold text-foreground">
@@ -356,42 +329,50 @@ export function SearchPage() {
             </div>
           </>
         ) : (
-          /* ─── Batch mode ─── */
-          <div className="flex h-full flex-col p-8">
-            <div className="mb-6">
+          /* ─── Batch mode — input centered like chat ─── */
+          <div className="flex h-full flex-col">
+            {/* Header */}
+            <div className="p-8 pb-4">
               <h1 className="flex items-center gap-3 text-3xl font-bold text-foreground">
                 <Package className="h-8 w-8 text-primary" />
                 Подбор по списку
               </h1>
-              {items.length > 0 && (
-                <p className="mt-2 text-sm text-muted-foreground">
-                  Позиций: <span className="text-foreground font-medium">{items.length}</span>
-                  {selectedCount > 0 && (
-                    <> · Подобрано: <span className="text-emerald-400 font-medium">{selectedCount}</span></>
-                  )}
-                  {" · "}
-                  <span className="text-primary">Нажмите на строку</span> чтобы подобрать товар
-                </p>
-              )}
+              <p className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
+                <span className="text-emerald-400">✓</span>
+                В базе данных {dbCount.toLocaleString()} товаров
+                {items.length > 0 && (
+                  <>
+                    {" · "}Позиций: <span className="text-foreground font-medium">{items.length}</span>
+                    {selectedCount > 0 && (
+                      <> · Подобрано: <span className="text-emerald-400 font-medium">{selectedCount}</span></>
+                    )}
+                  </>
+                )}
+              </p>
             </div>
 
-            {items.length === 0 ? (
-              <div className="flex-1 flex items-center justify-center">
-                <div className="text-center max-w-sm space-y-5">
-                  <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 border border-primary/20">
-                    <ClipboardList className="h-8 w-8 text-primary" />
-                  </div>
-                  <div className="space-y-2">
-                    <h2 className="text-lg font-semibold text-foreground">Вставьте список товаров</h2>
+            {/* Content area */}
+            <div className="flex-1 overflow-y-auto px-8 scrollbar-thin">
+              {items.length === 0 ? (
+                /* Empty state */
+                <div className="flex h-full items-center justify-center">
+                  <div className="text-center max-w-sm space-y-4">
+                    <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 border border-primary/20">
+                      <ClipboardList className="h-8 w-8 text-primary" />
+                    </div>
+                    <h2 className="text-lg font-semibold text-foreground">Вставьте список товаров ниже</h2>
                     <p className="text-sm text-muted-foreground leading-relaxed">
-                      Используйте панель слева — вставьте список, и система подберёт варианты из прайс-листов.
+                      Введите названия товаров (каждый с новой строки) в поле внизу, и система подберёт варианты из прайс-листов.
                     </p>
+                    <div className="flex items-center justify-center gap-2 text-sm text-muted-foreground">
+                      <ArrowRight className="h-4 w-4 text-primary" />
+                      <span>Поле ввода находится внизу</span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ) : (
-              <div className="rounded-lg border border-border overflow-hidden flex-1">
-                <div className="overflow-auto h-full scrollbar-thin">
+              ) : (
+                /* Table */
+                <div className="rounded-lg border border-border overflow-hidden">
                   <Table>
                     <TableHeader>
                       <TableRow className="bg-card hover:bg-card border-b border-border">
@@ -399,7 +380,9 @@ export function SearchPage() {
                         <TableHead className="text-muted-foreground">Что ищем</TableHead>
                         <TableHead className="text-muted-foreground w-28">Статус</TableHead>
                         <TableHead className="text-muted-foreground">Найденный товар</TableHead>
+                        <TableHead className="text-muted-foreground w-24">Артикул</TableHead>
                         <TableHead className="text-muted-foreground">Поставщик</TableHead>
+                        <TableHead className="text-muted-foreground w-16 text-center">Ед.</TableHead>
                         <TableHead className="text-muted-foreground w-24 text-right">Цена</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -424,7 +407,9 @@ export function SearchPage() {
                             <TableCell className="text-foreground text-sm">
                               {item.selectedProduct || <span className="text-muted-foreground/50">нажмите для подбора</span>}
                             </TableCell>
+                            <TableCell className="text-muted-foreground text-xs font-mono">{item.article || "—"}</TableCell>
                             <TableCell className="text-muted-foreground text-sm">{item.supplier || "—"}</TableCell>
+                            <TableCell className="text-muted-foreground text-sm text-center">{item.unit || "—"}</TableCell>
                             <TableCell className="text-right font-mono text-sm text-foreground">
                               {item.price ? `${item.price.toLocaleString()} ₽` : "—"}
                             </TableCell>
@@ -434,63 +419,102 @@ export function SearchPage() {
                     </TableBody>
                   </Table>
                 </div>
-              </div>
-            )}
+              )}
+            </div>
 
-            {/* Results dialog (centered table) */}
-            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-              <DialogContent className="bg-card border-border max-w-2xl">
-                <DialogHeader>
-                  <DialogTitle className="text-foreground flex items-center gap-2">
-                    <Search className="h-5 w-5 text-primary" />
-                    Варианты из прайс-листов
-                  </DialogTitle>
-                  {selectedItem && (
-                    <p className="text-sm text-muted-foreground mt-1">
-                      Ищем: <span className="text-foreground">«{selectedItem.query}»</span>
-                    </p>
-                  )}
-                </DialogHeader>
-
-                <div className="rounded-lg border border-border overflow-hidden mt-4">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="bg-muted/30 hover:bg-muted/30">
-                        <TableHead className="text-muted-foreground">Товар</TableHead>
-                        <TableHead className="text-muted-foreground w-32">Поставщик</TableHead>
-                        <TableHead className="text-muted-foreground w-20 text-center">Совпад.</TableHead>
-                        <TableHead className="text-muted-foreground w-24 text-right">Цена</TableHead>
-                        <TableHead className="w-28" />
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {MOCK_RESULTS.map((r) => (
-                        <TableRow key={r.id} className="border-b border-border hover:bg-primary/5">
-                          <TableCell className="text-foreground text-sm font-medium">{r.name}</TableCell>
-                          <TableCell className="text-muted-foreground text-sm">{r.supplier}</TableCell>
-                          <TableCell className="text-center">
-                            <span className="text-xs rounded-full bg-primary/15 text-primary px-2 py-0.5 font-medium">
-                              {r.match}%
-                            </span>
-                          </TableCell>
-                          <TableCell className="text-right font-mono text-sm text-foreground font-semibold">
-                            {r.price.toLocaleString()} ₽
-                          </TableCell>
-                          <TableCell>
-                            <Button variant="coral" size="sm" className="gap-1.5 w-full" onClick={() => handleSelectResult(r)}>
-                              <Check className="h-3.5 w-3.5" />
-                              Выбрать
-                            </Button>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+            {/* Input area — centered at bottom like chat */}
+            <div className="p-8 pt-4">
+              <div className="flex items-end gap-2 rounded-lg border border-border bg-card p-2">
+                <textarea
+                  value={batchInput}
+                  onChange={(e) => setBatchInput(e.target.value)}
+                  placeholder={`Введите товары, каждый с новой строки...\nНапример:\nАвтомат дифференциальный С50 100мА\nКабель ВВГнг 3x2.5`}
+                  rows={3}
+                  className="flex-1 resize-none bg-transparent p-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
+                />
+                <div className="flex flex-col gap-1">
+                  <Button variant="coral" className="gap-2" onClick={handlePasteBatch} disabled={!batchInput.trim()}>
+                    <Sparkles className="h-4 w-4" />
+                    {items.length > 0 ? "Добавить" : "Найти"}
+                  </Button>
+                  <button
+                    onClick={() => setBatchInput(EXAMPLE_BATCH)}
+                    className="text-[10px] text-muted-foreground hover:text-primary transition-colors"
+                  >
+                    Пример
+                  </button>
                 </div>
-              </DialogContent>
-            </Dialog>
+              </div>
+            </div>
           </div>
         )}
+
+        {/* Results dialog — centered table */}
+        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+          <DialogContent className="bg-card border-border max-w-4xl max-h-[80vh] overflow-auto">
+            <DialogHeader>
+              <DialogTitle className="text-foreground flex items-center gap-2">
+                <Search className="h-5 w-5 text-primary" />
+                Варианты из прайс-листов
+              </DialogTitle>
+              {selectedItem && (
+                <p className="text-sm text-muted-foreground mt-1">
+                  Ищем: <span className="text-foreground font-medium">«{selectedItem.query}»</span>
+                </p>
+              )}
+            </DialogHeader>
+
+            <div className="rounded-lg border border-border overflow-hidden mt-4">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/30 hover:bg-muted/30">
+                    <TableHead className="text-muted-foreground">Товар</TableHead>
+                    <TableHead className="text-muted-foreground w-28">Артикул</TableHead>
+                    <TableHead className="text-muted-foreground w-28">Поставщик</TableHead>
+                    <TableHead className="text-muted-foreground w-20 text-center">Совпад.</TableHead>
+                    <TableHead className="text-muted-foreground w-20 text-center">Наличие</TableHead>
+                    <TableHead className="text-muted-foreground w-20 text-center">Доставка</TableHead>
+                    <TableHead className="text-muted-foreground w-14 text-center">Ед.</TableHead>
+                    <TableHead className="text-muted-foreground w-24 text-right">Цена</TableHead>
+                    <TableHead className="w-24" />
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {MOCK_RESULTS.map((r) => (
+                    <TableRow key={r.id} className="border-b border-border hover:bg-primary/5 transition-colors">
+                      <TableCell className="text-foreground text-sm font-medium">{r.name}</TableCell>
+                      <TableCell className="text-muted-foreground text-xs font-mono">{r.article}</TableCell>
+                      <TableCell className="text-muted-foreground text-sm">{r.supplier}</TableCell>
+                      <TableCell className="text-center">
+                        <span className="text-xs rounded-full bg-primary/15 text-primary px-2 py-0.5 font-medium">
+                          {r.match}%
+                        </span>
+                      </TableCell>
+                      <TableCell className="text-center">
+                        {r.inStock ? (
+                          <span className="text-xs text-emerald-400 font-medium">В наличии</span>
+                        ) : (
+                          <span className="text-xs text-amber-400 font-medium">Под заказ</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-center text-xs text-muted-foreground">{r.deliveryDays} дн.</TableCell>
+                      <TableCell className="text-center text-xs text-muted-foreground">{r.unit}</TableCell>
+                      <TableCell className="text-right font-mono text-sm text-foreground font-semibold">
+                        {r.price.toLocaleString()} ₽
+                      </TableCell>
+                      <TableCell>
+                        <Button variant="coral" size="sm" className="gap-1 w-full text-xs" onClick={() => handleSelectResult(r)}>
+                          <Check className="h-3.5 w-3.5" />
+                          Выбрать
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
     ),
   };
