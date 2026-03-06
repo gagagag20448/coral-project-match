@@ -1,10 +1,17 @@
 import { useState } from "react";
 import {
   Settings, Truck, FileSpreadsheet, Database, Trash2, Plus, Play,
-  CheckCircle2, Loader2, Upload, Power, Clock, Package, Terminal, Wifi,
+  CheckCircle2, Loader2, Upload, Power, Clock, Package, Wifi, X,
+  ChevronRight, Eye,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from "@/components/ui/table";
 
 /* ─── Types ─── */
 interface PriceList {
@@ -42,104 +49,262 @@ const INITIAL_SUPPLIERS: Supplier[] = [
   },
 ];
 
-/* ─── Sidebar ─── */
-function AdminSidebar() {
+/* ─── Sidebar with Processing & Vectorization ─── */
+function AdminSidebar({
+  activeSuppliers,
+  procStatus,
+  procProgress,
+  procStep,
+  onRunProcessing,
+  vecStatus,
+  vecProgress,
+  onRunVectorization,
+}: {
+  activeSuppliers: number;
+  procStatus: "idle" | "running" | "done";
+  procProgress: number;
+  procStep: string;
+  onRunProcessing: () => void;
+  vecStatus: "idle" | "running" | "done";
+  vecProgress: number;
+  onRunVectorization: () => void;
+}) {
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
       <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
         <Settings className="h-4 w-4 text-muted-foreground" />
-        Панель управления
+        Инструменты
       </h3>
-      <p className="text-sm text-muted-foreground leading-relaxed">
-        Здесь вы можете управлять поставщиками, загружать прайс-листы и запускать обработку данных.
-      </p>
-      <div className="space-y-2 text-sm">
-        {[
-          { icon: Truck, text: "Поставщики и прайс-листы — карточки вверху" },
-          { icon: FileSpreadsheet, text: "Обработка прайсов — кнопка внизу" },
-          { icon: Database, text: "Векторизация — после обработки" },
-        ].map((item, i) => (
-          <div key={i} className="flex items-center gap-3 rounded-lg bg-card p-2.5 border border-border">
-            <div className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary text-xs font-bold">
-              {i + 1}
-            </div>
-            <item.icon className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-            <span className="text-foreground">{item.text}</span>
+
+      {/* Processing */}
+      <div className="rounded-lg border border-border bg-card p-3 space-y-3">
+        <div className="flex items-center gap-2">
+          <FileSpreadsheet className="h-4 w-4 text-primary" />
+          <span className="text-sm font-medium text-foreground">Обработка прайсов</span>
+        </div>
+        <p className="text-xs text-muted-foreground">Извлечение данных из прайс-листов</p>
+
+        <div className="flex gap-2 text-xs">
+          <div className="flex-1 rounded-md bg-muted/50 p-2 text-center">
+            <p className="font-bold text-foreground">{activeSuppliers}</p>
+            <p className="text-[10px] text-muted-foreground">Прайсов</p>
           </div>
-        ))}
+          <div className="flex-1 rounded-md bg-muted/50 p-2 text-center">
+            <p className="font-bold text-foreground">19.12</p>
+            <p className="text-[10px] text-muted-foreground">Обработка</p>
+          </div>
+        </div>
+
+        {procStatus !== "idle" && (
+          <div className="space-y-1">
+            <div className="flex items-center gap-1.5 text-xs">
+              {procStatus === "running" ? (
+                <Loader2 className="h-3 w-3 animate-spin text-primary" />
+              ) : (
+                <CheckCircle2 className="h-3 w-3 text-emerald-400" />
+              )}
+              <span className={procStatus === "done" ? "text-emerald-400" : "text-foreground"}>{procStep}</span>
+            </div>
+            <Progress value={Math.min(procProgress, 100)} className="h-1.5 [&>div]:bg-primary [&>div]:transition-all" />
+          </div>
+        )}
+
+        <Button variant="coral" size="sm" className="gap-1.5 w-full text-xs" onClick={onRunProcessing} disabled={procStatus === "running"}>
+          {procStatus === "running" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Play className="h-3 w-3" />}
+          {procStatus === "done" ? "Повторить" : "Запустить"}
+        </Button>
+      </div>
+
+      {/* Vectorization */}
+      <div className="rounded-lg border border-border bg-card p-3 space-y-3">
+        <div className="flex items-center gap-2">
+          <Database className="h-4 w-4 text-primary" />
+          <span className="text-sm font-medium text-foreground">Векторизация</span>
+        </div>
+        <p className="text-xs text-muted-foreground">Умный поиск по товарам</p>
+
+        <div className="flex items-center gap-2 rounded-md bg-emerald-500/5 border border-emerald-500/20 p-2 text-xs">
+          <Wifi className="h-3 w-3 text-emerald-400" />
+          <span className="text-emerald-400 font-medium">Подключено</span>
+          <span className="text-muted-foreground ml-auto text-[10px]">40 356 · 768d</span>
+        </div>
+
+        {vecStatus !== "idle" && (
+          <div className="space-y-1">
+            <div className="flex items-center gap-1.5 text-xs">
+              {vecStatus === "running" ? (
+                <Loader2 className="h-3 w-3 animate-spin text-primary" />
+              ) : (
+                <CheckCircle2 className="h-3 w-3 text-emerald-400" />
+              )}
+              <span className={vecStatus === "done" ? "text-emerald-400" : "text-foreground"}>
+                {vecStatus === "done" ? "Завершено" : "Обработка..."}
+              </span>
+            </div>
+            <Progress value={Math.min(vecProgress, 100)} className="h-1.5 [&>div]:bg-primary [&>div]:transition-all" />
+          </div>
+        )}
+
+        <Button variant="coral" size="sm" className="gap-1.5 w-full text-xs" onClick={onRunVectorization} disabled={vecStatus === "running"}>
+          {vecStatus === "running" ? <Loader2 className="h-3 w-3 animate-spin" /> : <Play className="h-3 w-3" />}
+          {vecStatus === "done" ? "Повторить" : "Запустить"}
+        </Button>
       </div>
     </div>
   );
 }
 
-/* ─── Supplier Card (compact, friendly) ─── */
-function SupplierCard({ supplier, onDelete }: { supplier: Supplier; onDelete: () => void }) {
-  const activePL = supplier.priceLists.find((p) => p.active);
+/* ─── Supplier Card (compact, clickable) ─── */
+function SupplierCard({ supplier, onDelete, onClick }: { supplier: Supplier; onDelete: (e: React.MouseEvent) => void; onClick: () => void }) {
   const totalRows = supplier.priceLists.filter(p => p.active).reduce((s, p) => s + p.rows, 0);
+  const activePLCount = supplier.priceLists.filter(p => p.active).length;
 
   return (
-    <div className="rounded-xl border border-border bg-card p-4 space-y-3 hover:border-primary/20 transition-colors">
-      {/* Top row */}
+    <div
+      className="rounded-xl border border-border bg-card p-4 space-y-3 hover:border-primary/30 transition-colors cursor-pointer group"
+      onClick={onClick}
+    >
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10">
-            <Package className="h-4.5 w-4.5 text-primary" />
+        <div className="flex items-center gap-3 min-w-0">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-primary/10 flex-shrink-0">
+            <Package className="h-4 w-4 text-primary" />
           </div>
-          <div>
-            <h4 className="font-semibold text-foreground text-sm">{supplier.name}</h4>
+          <div className="min-w-0">
+            <h4 className="font-semibold text-foreground text-sm truncate">{supplier.name}</h4>
             <div className="flex items-center gap-3 text-xs text-muted-foreground mt-0.5">
               <span className="flex items-center gap-1"><Clock className="h-3 w-3" />{supplier.deliveryDays} дн.</span>
-              {totalRows > 0 && <span>{totalRows.toLocaleString()} позиций</span>}
+              <span>{activePLCount} прайс{activePLCount !== 1 ? "а" : ""}</span>
+              {totalRows > 0 && <span className="text-emerald-400">{totalRows.toLocaleString()} поз.</span>}
             </div>
           </div>
         </div>
-        <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive" onClick={onDelete}>
-          <Trash2 className="h-3.5 w-3.5" />
-        </Button>
+        <div className="flex items-center gap-1">
+          <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity" onClick={onDelete}>
+            <Trash2 className="h-3.5 w-3.5" />
+          </Button>
+          <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+        </div>
       </div>
 
-      {/* Price lists — simplified */}
+      {/* Quick status */}
       {supplier.priceLists.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-border p-3 text-center">
+        <div className="rounded-lg border border-dashed border-border p-2 text-center">
           <p className="text-xs text-muted-foreground">Нет прайс-листов</p>
         </div>
       ) : (
-        <div className="space-y-1.5">
+        <div className="flex gap-1.5">
           {supplier.priceLists.map((pl, i) => (
-            <div key={i} className={`flex items-center justify-between rounded-lg px-3 py-2 text-xs ${
-              pl.active
-                ? "bg-emerald-500/10 border border-emerald-500/20"
-                : "bg-muted/30 border border-transparent"
-            }`}>
-              <div className="flex items-center gap-2 min-w-0">
-                <FileSpreadsheet className="h-3.5 w-3.5 text-muted-foreground flex-shrink-0" />
-                <span className="text-foreground truncate">{pl.name}</span>
-                <span className="text-muted-foreground flex-shrink-0">{pl.uploadedAt}</span>
-              </div>
-              {pl.active ? (
-                <span className="text-emerald-400 font-medium flex-shrink-0">● Активен</span>
-              ) : (
-                <button className="text-muted-foreground hover:text-primary transition-colors flex items-center gap-1 flex-shrink-0">
-                  <Power className="h-3 w-3" /> Включить
-                </button>
-              )}
+            <div
+              key={i}
+              className={`flex-1 rounded-md px-2 py-1.5 text-[10px] text-center truncate ${
+                pl.active
+                  ? "bg-emerald-500/10 border border-emerald-500/20 text-emerald-400"
+                  : "bg-muted/30 text-muted-foreground"
+              }`}
+              title={pl.name}
+            >
+              {pl.active ? "● " : ""}{pl.name.length > 15 ? pl.name.slice(0, 15) + "…" : pl.name}
             </div>
           ))}
         </div>
       )}
-
-      {/* Action */}
-      <Button variant="coral-outline" size="sm" className="gap-1.5 w-full text-xs">
-        <Upload className="h-3.5 w-3.5" />
-        Загрузить прайс-лист
-      </Button>
     </div>
+  );
+}
+
+/* ─── Supplier Detail Dialog ─── */
+function SupplierDialog({ supplier, open, onClose }: { supplier: Supplier | null; open: boolean; onClose: () => void }) {
+  if (!supplier) return null;
+
+  return (
+    <Dialog open={open} onOpenChange={onClose}>
+      <DialogContent className="bg-card border-border max-w-2xl">
+        <DialogHeader>
+          <DialogTitle className="text-foreground flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+              <Package className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <span>{supplier.name}</span>
+              <p className="text-xs text-muted-foreground font-normal mt-0.5">
+                Доставка: {supplier.deliveryDays} дн. · Прайс-листов: {supplier.priceLists.length}
+              </p>
+            </div>
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="mt-4 space-y-4">
+          <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
+            <FileSpreadsheet className="h-4 w-4 text-primary" />
+            Прайс-листы
+          </h4>
+
+          {supplier.priceLists.length === 0 ? (
+            <div className="rounded-lg border border-dashed border-border p-6 text-center">
+              <p className="text-sm text-muted-foreground">Нет загруженных прайс-листов</p>
+              <Button variant="coral-outline" size="sm" className="mt-3 gap-1.5">
+                <Upload className="h-3.5 w-3.5" />
+                Загрузить первый прайс
+              </Button>
+            </div>
+          ) : (
+            <div className="rounded-lg border border-border overflow-hidden">
+              <Table>
+                <TableHeader>
+                  <TableRow className="bg-muted/30 hover:bg-muted/30">
+                    <TableHead className="text-muted-foreground">Файл</TableHead>
+                    <TableHead className="text-muted-foreground w-28">Дата</TableHead>
+                    <TableHead className="text-muted-foreground w-24 text-right">Позиций</TableHead>
+                    <TableHead className="text-muted-foreground w-28 text-center">Статус</TableHead>
+                    <TableHead className="w-28" />
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {supplier.priceLists.map((pl, i) => (
+                    <TableRow key={i} className="border-b border-border">
+                      <TableCell className="text-foreground text-sm flex items-center gap-2">
+                        <FileSpreadsheet className="h-3.5 w-3.5 text-muted-foreground" />
+                        {pl.name}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground text-sm">{pl.uploadedAt}</TableCell>
+                      <TableCell className="text-right text-sm text-foreground font-mono">{pl.rows.toLocaleString()}</TableCell>
+                      <TableCell className="text-center">
+                        {pl.active ? (
+                          <span className="text-xs text-emerald-400 font-medium">● Активен</span>
+                        ) : (
+                          <button className="text-xs text-muted-foreground hover:text-primary transition-colors flex items-center gap-1 mx-auto">
+                            <Power className="h-3 w-3" /> Включить
+                          </button>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        <Button variant="ghost" size="sm" className="h-7 text-xs text-muted-foreground hover:text-destructive gap-1">
+                          <Trash2 className="h-3 w-3" />
+                          Удалить
+                        </Button>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+
+          <Button variant="coral-outline" size="sm" className="gap-1.5 w-full text-xs">
+            <Upload className="h-3.5 w-3.5" />
+            Загрузить новый прайс-лист
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
 /* ─── Main Admin Page ─── */
 export function AdminPage() {
   const [suppliers, setSuppliers] = useState(INITIAL_SUPPLIERS);
+  const [selectedSupplier, setSelectedSupplier] = useState<Supplier | null>(null);
+  const [supplierDialogOpen, setSupplierDialogOpen] = useState(false);
 
   // Processing state
   const [procStatus, setProcStatus] = useState<"idle" | "running" | "done">("idle");
@@ -186,15 +351,34 @@ export function AdminPage() {
     }, 400);
   };
 
-  const handleDelete = (id: string) => setSuppliers((prev) => prev.filter((s) => s.id !== id));
+  const handleDelete = (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    setSuppliers((prev) => prev.filter((s) => s.id !== id));
+  };
+
+  const handleCardClick = (supplier: Supplier) => {
+    setSelectedSupplier(supplier);
+    setSupplierDialogOpen(true);
+  };
 
   const activeSuppliers = suppliers.filter(s => s.priceLists.some(p => p.active)).length;
   const totalProducts = suppliers.reduce((sum, s) => sum + s.priceLists.filter(p => p.active).reduce((a, p) => a + p.rows, 0), 0);
 
   return {
-    sidebar: <AdminSidebar />,
+    sidebar: (
+      <AdminSidebar
+        activeSuppliers={activeSuppliers}
+        procStatus={procStatus}
+        procProgress={procProgress}
+        procStep={procStep}
+        onRunProcessing={handleRunProcessing}
+        vecStatus={vecStatus}
+        vecProgress={vecProgress}
+        onRunVectorization={handleRunVectorization}
+      />
+    ),
     content: (
-      <div className="p-8 space-y-8 max-w-5xl">
+      <div className="p-8 space-y-6 max-w-5xl overflow-y-auto h-full">
         {/* Header */}
         <div>
           <h1 className="flex items-center gap-3 text-3xl font-bold text-foreground">
@@ -210,16 +394,24 @@ export function AdminPage() {
 
         {/* ─── Suppliers ─── */}
         <section className="space-y-4">
-          <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
-            <Truck className="h-5 w-5 text-primary" />
-            Поставщики
-          </h2>
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+              <Truck className="h-5 w-5 text-primary" />
+              Поставщики
+            </h2>
+            <p className="text-xs text-muted-foreground">Нажмите на карточку для подробностей</p>
+          </div>
           <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
             {suppliers.map((s) => (
-              <SupplierCard key={s.id} supplier={s} onDelete={() => handleDelete(s.id)} />
+              <SupplierCard
+                key={s.id}
+                supplier={s}
+                onDelete={(e) => handleDelete(e, s.id)}
+                onClick={() => handleCardClick(s)}
+              />
             ))}
             {/* Add card */}
-            <button className="rounded-xl border-2 border-dashed border-border hover:border-primary/40 p-6 flex flex-col items-center justify-center gap-2 transition-colors group min-h-[140px]">
+            <button className="rounded-xl border-2 border-dashed border-border hover:border-primary/40 p-6 flex flex-col items-center justify-center gap-2 transition-colors group min-h-[120px]">
               <div className="flex h-10 w-10 items-center justify-center rounded-full bg-muted group-hover:bg-primary/10 transition-colors">
                 <Plus className="h-5 w-5 text-muted-foreground group-hover:text-primary transition-colors" />
               </div>
@@ -228,92 +420,12 @@ export function AdminPage() {
           </div>
         </section>
 
-        {/* ─── Processing & Vectorization — side by side ─── */}
-        <div className="grid gap-4 md:grid-cols-2">
-          {/* Processing */}
-          <section className="rounded-xl border border-border bg-card p-5 space-y-4">
-            <div className="flex items-center gap-2">
-              <FileSpreadsheet className="h-5 w-5 text-primary" />
-              <h2 className="text-base font-semibold text-foreground">Обработка прайсов</h2>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Извлечение данных из загруженных прайс-листов и сохранение в базу
-            </p>
-
-            {/* Mini stats */}
-            <div className="flex gap-3">
-              {[
-                { label: "Прайсов", value: String(activeSuppliers) },
-                { label: "Обработка", value: "19.12.2025" },
-              ].map((s, i) => (
-                <div key={i} className="flex-1 rounded-lg bg-muted/50 p-2.5 text-center">
-                  <p className="text-sm font-bold text-foreground">{s.value}</p>
-                  <p className="text-[10px] text-muted-foreground">{s.label}</p>
-                </div>
-              ))}
-            </div>
-
-            {procStatus !== "idle" && (
-              <div className="space-y-1.5">
-                <div className="flex items-center gap-2 text-xs">
-                  {procStatus === "running" ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
-                  ) : (
-                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
-                  )}
-                  <span className={procStatus === "done" ? "text-emerald-400" : "text-foreground"}>
-                    {procStep}
-                  </span>
-                </div>
-                <Progress value={Math.min(procProgress, 100)} className="h-2 [&>div]:bg-primary [&>div]:transition-all" />
-              </div>
-            )}
-
-            <Button variant="coral" size="sm" className="gap-2 w-full" onClick={handleRunProcessing} disabled={procStatus === "running"}>
-              {procStatus === "running" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
-              {procStatus === "done" ? "Повторить" : "Запустить обработку"}
-            </Button>
-          </section>
-
-          {/* Vectorization */}
-          <section className="rounded-xl border border-border bg-card p-5 space-y-4">
-            <div className="flex items-center gap-2">
-              <Database className="h-5 w-5 text-primary" />
-              <h2 className="text-base font-semibold text-foreground">Векторизация</h2>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Создание векторов для умного поиска по товарам
-            </p>
-
-            {/* Connection + stats */}
-            <div className="flex items-center gap-2 rounded-lg bg-emerald-500/5 border border-emerald-500/20 p-2 text-xs">
-              <Wifi className="h-3.5 w-3.5 text-emerald-400" />
-              <span className="text-emerald-400 font-medium">Подключено</span>
-              <span className="text-muted-foreground ml-auto">40 356 векторов · 768 изм.</span>
-            </div>
-
-            {vecStatus !== "idle" && (
-              <div className="space-y-1.5">
-                <div className="flex items-center gap-2 text-xs">
-                  {vecStatus === "running" ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
-                  ) : (
-                    <CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
-                  )}
-                  <span className={vecStatus === "done" ? "text-emerald-400" : "text-foreground"}>
-                    {vecStatus === "done" ? "Векторизация завершена" : "Обработка..."}
-                  </span>
-                </div>
-                <Progress value={Math.min(vecProgress, 100)} className="h-2 [&>div]:bg-primary [&>div]:transition-all" />
-              </div>
-            )}
-
-            <Button variant="coral" size="sm" className="gap-2 w-full" onClick={handleRunVectorization} disabled={vecStatus === "running"}>
-              {vecStatus === "running" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
-              {vecStatus === "done" ? "Повторить" : "Запустить векторизацию"}
-            </Button>
-          </section>
-        </div>
+        {/* Supplier detail dialog */}
+        <SupplierDialog
+          supplier={selectedSupplier}
+          open={supplierDialogOpen}
+          onClose={() => setSupplierDialogOpen(false)}
+        />
       </div>
     ),
   };

@@ -1,5 +1,5 @@
-import { useState, useRef, KeyboardEvent } from "react";
-import { Search, Bot, Send, Lightbulb, Settings2, HelpCircle, Trash2, ClipboardList, Sparkles, Check, Package, ArrowRight } from "lucide-react";
+import { useState, useRef, KeyboardEvent, useMemo } from "react";
+import { Search, Bot, Send, Lightbulb, Settings2, HelpCircle, Trash2, ClipboardList, Sparkles, Check, Package, ArrowRight, Filter } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import {
@@ -153,7 +153,6 @@ function SearchSidebar({
         </>
       ) : (
         <>
-          {/* Batch mode — just instructions */}
           <div className="space-y-3">
             <h3 className="text-sm font-semibold text-foreground">Как это работает?</h3>
             <div className="space-y-2 text-sm">
@@ -203,6 +202,10 @@ export function SearchPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [batchInput, setBatchInput] = useState("");
 
+  // Search filters
+  const [batchSearch, setBatchSearch] = useState("");
+  const [dialogSearch, setDialogSearch] = useState("");
+
   const sendMessage = (text: string) => {
     if (!text.trim()) return;
     const userMsg: Message = { id: Date.now().toString(), role: "user", content: text };
@@ -237,6 +240,7 @@ export function SearchPage() {
   const handleRowClick = (item: ProjectItem) => {
     setSelectedItem(item);
     setDialogOpen(true);
+    setDialogSearch("");
     setItems((prev) =>
       prev.map((p) => (p.id === item.id ? { ...p, status: "searching" } : p))
     );
@@ -267,6 +271,31 @@ export function SearchPage() {
   };
 
   const selectedCount = items.filter((i) => i.status === "selected").length;
+
+  // Filtered items for batch table
+  const filteredItems = useMemo(() => {
+    if (!batchSearch.trim()) return items;
+    const q = batchSearch.toLowerCase();
+    return items.filter(
+      (item) =>
+        item.query.toLowerCase().includes(q) ||
+        (item.selectedProduct && item.selectedProduct.toLowerCase().includes(q)) ||
+        (item.supplier && item.supplier.toLowerCase().includes(q)) ||
+        (item.article && item.article.toLowerCase().includes(q))
+    );
+  }, [items, batchSearch]);
+
+  // Filtered results for dialog
+  const filteredResults = useMemo(() => {
+    if (!dialogSearch.trim()) return MOCK_RESULTS;
+    const q = dialogSearch.toLowerCase();
+    return MOCK_RESULTS.filter(
+      (r) =>
+        r.name.toLowerCase().includes(q) ||
+        r.supplier.toLowerCase().includes(q) ||
+        r.article.toLowerCase().includes(q)
+    );
+  }, [dialogSearch]);
 
   return {
     sidebar: (
@@ -329,9 +358,8 @@ export function SearchPage() {
             </div>
           </>
         ) : (
-          /* ─── Batch mode — input centered like chat ─── */
+          /* ─── Batch mode ─── */
           <div className="flex h-full flex-col">
-            {/* Header */}
             <div className="p-8 pb-4">
               <h1 className="flex items-center gap-3 text-3xl font-bold text-foreground">
                 <Package className="h-8 w-8 text-primary" />
@@ -351,10 +379,8 @@ export function SearchPage() {
               </p>
             </div>
 
-            {/* Content area */}
             <div className="flex-1 overflow-y-auto px-8 scrollbar-thin">
               {items.length === 0 ? (
-                /* Empty state */
                 <div className="flex h-full items-center justify-center">
                   <div className="text-center max-w-sm space-y-4">
                     <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/10 border border-primary/20">
@@ -371,58 +397,76 @@ export function SearchPage() {
                   </div>
                 </div>
               ) : (
-                /* Table */
-                <div className="rounded-lg border border-border overflow-hidden">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="bg-card hover:bg-card border-b border-border">
-                        <TableHead className="text-muted-foreground w-12">№</TableHead>
-                        <TableHead className="text-muted-foreground">Что ищем</TableHead>
-                        <TableHead className="text-muted-foreground w-28">Статус</TableHead>
-                        <TableHead className="text-muted-foreground">Найденный товар</TableHead>
-                        <TableHead className="text-muted-foreground w-24">Артикул</TableHead>
-                        <TableHead className="text-muted-foreground">Поставщик</TableHead>
-                        <TableHead className="text-muted-foreground w-16 text-center">Ед.</TableHead>
-                        <TableHead className="text-muted-foreground w-24 text-right">Цена</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {items.map((item) => {
-                        const st = statusConfig[item.status];
-                        return (
-                          <TableRow
-                            key={item.id}
-                            className={`cursor-pointer border-b border-border transition-colors ${
-                              item.status === "selected" ? "hover:bg-emerald-500/5" : "hover:bg-primary/5"
-                            }`}
-                            onClick={() => handleRowClick(item)}
-                          >
-                            <TableCell className="font-mono text-muted-foreground text-xs">{item.id}</TableCell>
-                            <TableCell className="text-foreground">{item.query}</TableCell>
-                            <TableCell>
-                              <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${st.cls}`}>
-                                {st.label}
-                              </span>
-                            </TableCell>
-                            <TableCell className="text-foreground text-sm">
-                              {item.selectedProduct || <span className="text-muted-foreground/50">нажмите для подбора</span>}
-                            </TableCell>
-                            <TableCell className="text-muted-foreground text-xs font-mono">{item.article || "—"}</TableCell>
-                            <TableCell className="text-muted-foreground text-sm">{item.supplier || "—"}</TableCell>
-                            <TableCell className="text-muted-foreground text-sm text-center">{item.unit || "—"}</TableCell>
-                            <TableCell className="text-right font-mono text-sm text-foreground">
-                              {item.price ? `${item.price.toLocaleString()} ₽` : "—"}
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
+                <div className="space-y-3">
+                  {/* Search filter for batch table */}
+                  <div className="flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2">
+                    <Search className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                    <input
+                      value={batchSearch}
+                      onChange={(e) => setBatchSearch(e.target.value)}
+                      placeholder="Поиск по таблице..."
+                      className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
+                    />
+                    {batchSearch && (
+                      <button onClick={() => setBatchSearch("")} className="text-xs text-muted-foreground hover:text-foreground">
+                        ✕
+                      </button>
+                    )}
+                    <span className="text-xs text-muted-foreground">{filteredItems.length} из {items.length}</span>
+                  </div>
+
+                  <div className="rounded-lg border border-border overflow-hidden">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-card hover:bg-card border-b border-border">
+                          <TableHead className="text-muted-foreground w-12">№</TableHead>
+                          <TableHead className="text-muted-foreground">Что ищем</TableHead>
+                          <TableHead className="text-muted-foreground w-28">Статус</TableHead>
+                          <TableHead className="text-muted-foreground">Найденный товар</TableHead>
+                          <TableHead className="text-muted-foreground w-24">Артикул</TableHead>
+                          <TableHead className="text-muted-foreground">Поставщик</TableHead>
+                          <TableHead className="text-muted-foreground w-16 text-center">Ед.</TableHead>
+                          <TableHead className="text-muted-foreground w-24 text-right">Цена</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredItems.map((item) => {
+                          const st = statusConfig[item.status];
+                          return (
+                            <TableRow
+                              key={item.id}
+                              className={`cursor-pointer border-b border-border transition-colors ${
+                                item.status === "selected" ? "hover:bg-emerald-500/5" : "hover:bg-primary/5"
+                              }`}
+                              onClick={() => handleRowClick(item)}
+                            >
+                              <TableCell className="font-mono text-muted-foreground text-xs">{item.id}</TableCell>
+                              <TableCell className="text-foreground">{item.query}</TableCell>
+                              <TableCell>
+                                <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${st.cls}`}>
+                                  {st.label}
+                                </span>
+                              </TableCell>
+                              <TableCell className="text-foreground text-sm">
+                                {item.selectedProduct || <span className="text-muted-foreground/50">нажмите для подбора</span>}
+                              </TableCell>
+                              <TableCell className="text-muted-foreground text-xs font-mono">{item.article || "—"}</TableCell>
+                              <TableCell className="text-muted-foreground text-sm">{item.supplier || "—"}</TableCell>
+                              <TableCell className="text-muted-foreground text-sm text-center">{item.unit || "—"}</TableCell>
+                              <TableCell className="text-right font-mono text-sm text-foreground">
+                                {item.price ? `${item.price.toLocaleString()} ₽` : "—"}
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
                 </div>
               )}
             </div>
 
-            {/* Input area — centered at bottom like chat */}
+            {/* Input area */}
             <div className="p-8 pt-4">
               <div className="flex items-end gap-2 rounded-lg border border-border bg-card p-2">
                 <textarea
@@ -449,7 +493,7 @@ export function SearchPage() {
           </div>
         )}
 
-        {/* Results dialog — centered table */}
+        {/* Results dialog — centered table with search */}
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogContent className="bg-card border-border max-w-4xl max-h-[80vh] overflow-auto">
             <DialogHeader>
@@ -464,7 +508,23 @@ export function SearchPage() {
               )}
             </DialogHeader>
 
-            <div className="rounded-lg border border-border overflow-hidden mt-4">
+            {/* Search in dialog */}
+            <div className="flex items-center gap-2 rounded-lg border border-border bg-muted/30 px-3 py-2 mt-2">
+              <Search className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+              <input
+                value={dialogSearch}
+                onChange={(e) => setDialogSearch(e.target.value)}
+                placeholder="Фильтр по названию, поставщику, артикулу..."
+                className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground focus:outline-none"
+              />
+              {dialogSearch && (
+                <button onClick={() => setDialogSearch("")} className="text-xs text-muted-foreground hover:text-foreground">
+                  ✕
+                </button>
+              )}
+            </div>
+
+            <div className="rounded-lg border border-border overflow-hidden mt-2">
               <Table>
                 <TableHeader>
                   <TableRow className="bg-muted/30 hover:bg-muted/30">
@@ -480,36 +540,44 @@ export function SearchPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {MOCK_RESULTS.map((r) => (
-                    <TableRow key={r.id} className="border-b border-border hover:bg-primary/5 transition-colors">
-                      <TableCell className="text-foreground text-sm font-medium">{r.name}</TableCell>
-                      <TableCell className="text-muted-foreground text-xs font-mono">{r.article}</TableCell>
-                      <TableCell className="text-muted-foreground text-sm">{r.supplier}</TableCell>
-                      <TableCell className="text-center">
-                        <span className="text-xs rounded-full bg-primary/15 text-primary px-2 py-0.5 font-medium">
-                          {r.match}%
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-center">
-                        {r.inStock ? (
-                          <span className="text-xs text-emerald-400 font-medium">В наличии</span>
-                        ) : (
-                          <span className="text-xs text-amber-400 font-medium">Под заказ</span>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-center text-xs text-muted-foreground">{r.deliveryDays} дн.</TableCell>
-                      <TableCell className="text-center text-xs text-muted-foreground">{r.unit}</TableCell>
-                      <TableCell className="text-right font-mono text-sm text-foreground font-semibold">
-                        {r.price.toLocaleString()} ₽
-                      </TableCell>
-                      <TableCell>
-                        <Button variant="coral" size="sm" className="gap-1 w-full text-xs" onClick={() => handleSelectResult(r)}>
-                          <Check className="h-3.5 w-3.5" />
-                          Выбрать
-                        </Button>
+                  {filteredResults.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={9} className="text-center text-muted-foreground py-8">
+                        Ничего не найдено
                       </TableCell>
                     </TableRow>
-                  ))}
+                  ) : (
+                    filteredResults.map((r) => (
+                      <TableRow key={r.id} className="border-b border-border hover:bg-primary/5 transition-colors">
+                        <TableCell className="text-foreground text-sm font-medium">{r.name}</TableCell>
+                        <TableCell className="text-muted-foreground text-xs font-mono">{r.article}</TableCell>
+                        <TableCell className="text-muted-foreground text-sm">{r.supplier}</TableCell>
+                        <TableCell className="text-center">
+                          <span className="text-xs rounded-full bg-primary/15 text-primary px-2 py-0.5 font-medium">
+                            {r.match}%
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {r.inStock ? (
+                            <span className="text-xs text-emerald-400 font-medium">В наличии</span>
+                          ) : (
+                            <span className="text-xs text-amber-400 font-medium">Под заказ</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-center text-xs text-muted-foreground">{r.deliveryDays} дн.</TableCell>
+                        <TableCell className="text-center text-xs text-muted-foreground">{r.unit}</TableCell>
+                        <TableCell className="text-right font-mono text-sm text-foreground font-semibold">
+                          {r.price.toLocaleString()} ₽
+                        </TableCell>
+                        <TableCell>
+                          <Button variant="coral" size="sm" className="gap-1 w-full text-xs" onClick={() => handleSelectResult(r)}>
+                            <Check className="h-3.5 w-3.5" />
+                            Выбрать
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))
+                  )}
                 </TableBody>
               </Table>
             </div>
